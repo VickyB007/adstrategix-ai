@@ -36,7 +36,7 @@ if api_key:
     # Test button
     if st.sidebar.button("Test API"):
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-pro")
             res = model.generate_content("Say hello")
             st.sidebar.success("✅ API Working")
         except Exception as e:
