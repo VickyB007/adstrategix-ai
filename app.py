@@ -6,12 +6,13 @@ from io import StringIO
 
 st.set_page_config(page_title="AdStrategix AI", layout="wide")
 
-# ================= LOGIN =================
+# ================= LOGIN FIXED =================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
     st.title("🔐 Login")
+
     user = st.text_input("Username")
     pwd = st.text_input("Password", type="password")
 
@@ -19,8 +20,9 @@ if not st.session_state.logged_in:
         if user == "admin" and pwd == "1234":
             st.session_state.logged_in = True
             st.success("Login successful")
+            st.rerun()  # FIX
         else:
-            st.error("Invalid login")
+            st.error("Invalid credentials")
 
     st.stop()
 
@@ -33,10 +35,10 @@ if api_key:
 def generate_ai(prompt):
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
-        res = model.generate_content(prompt)
-        return res.text
+        response = model.generate_content(prompt)
+        return response.text
     except:
-        return "⚠️ Add valid API key"
+        return "⚠️ Add valid Gemini API key"
 
 # ================= FUNCTIONS =================
 
@@ -48,39 +50,45 @@ def detect_platform(df):
     elif any("adset" in c for c in cols):
         return "Meta Ads"
     elif any("line item" in c for c in cols):
-        return "DV360"
-    return "Unknown"
+        return "DV360 / Programmatic"
+    return "Unknown Platform"
 
 def create_ppt(brand, industry, results):
     prs = Presentation()
+
     slide = prs.slides.add_slide(prs.slide_layouts[1])
     slide.shapes.title.text = f"{brand} Media Plan"
-    slide.placeholders[1].text = industry
+    slide.placeholders[1].text = f"Industry: {industry}"
 
     for r in results:
         slide = prs.slides.add_slide(prs.slide_layouts[1])
         slide.shapes.title.text = r["Platform"]
-        slide.placeholders[1].text = f"Conv: {r['Conversions']} | CPA: {r['CPA']}"
+        slide.placeholders[1].text = f"Conversions: {r['Conversions']} | CPA: {r['CPA']}"
 
-    prs.save("plan.pptx")
+    prs.save("media_plan.pptx")
 
 # ================= UI =================
-st.title("🚀 AdStrategix AI")
+st.title("🚀 AdStrategix AI - Paid Media Intelligence")
 
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📊 Planner", "📈 Analyzer", "🧾 Ad Preview", "💾 Saved"
+    "📊 Planner",
+    "📈 Analyzer",
+    "🧾 Ad Preview",
+    "💾 Saved Plans"
 ])
 
 # =====================================================
-# TAB 1
+# TAB 1 — PLANNER
 # =====================================================
 with tab1:
 
-    brand = st.text_input("Brand")
+    st.header("📊 Media Planner")
+
+    brand = st.text_input("Brand Name")
     industry = st.selectbox("Industry", ["Real Estate", "SaaS", "Ecommerce"])
     country = st.selectbox("Country", ["India", "USA", "UK"])
-    budget = st.number_input("Budget", min_value=1000)
     objective = st.selectbox("Objective", ["Leads", "Sales"])
+    budget = st.number_input("Budget", min_value=1000)
 
     benchmarks = {
         "India": {"cpm": 250, "ctr": 1.2, "cvr": 3},
@@ -94,52 +102,58 @@ with tab1:
         results = []
 
         platforms = {
-            "Google": 0.4,
-            "Meta": 0.35,
+            "Google Ads": 0.4,
+            "Meta Ads": 0.35,
             "LinkedIn": 0.15,
             "Programmatic": 0.1
         }
 
-        for p, split in platforms.items():
-            b = budget * split
-            imp = (b / data["cpm"]) * 1000
-            clk = imp * (data["ctr"] / 100)
-            conv = clk * (data["cvr"] / 100)
-            cpa = b / conv if conv else 0
+        st.subheader("📊 KPI Forecast")
 
-            st.metric(p, f"{int(conv)} conv")
+        for p, split in platforms.items():
+            sub_budget = budget * split
+
+            impressions = (sub_budget / data["cpm"]) * 1000
+            clicks = impressions * (data["ctr"] / 100)
+            conversions = clicks * (data["cvr"] / 100)
+            cpa = sub_budget / conversions if conversions else 0
+
+            st.metric(p, f"{int(conversions)} conversions | CPA {round(cpa,2)}")
 
             results.append({
                 "Platform": p,
-                "Conversions": int(conv),
+                "Conversions": int(conversions),
                 "CPA": round(cpa, 2)
             })
 
         # AI Persona
-        st.subheader("👤 Persona")
-        st.write(generate_ai(f"Buyer persona for {industry} in {country}"))
+        st.subheader("👤 AI Buyer Persona")
+        st.write(generate_ai(f"Create buyer persona for {industry} in {country}"))
 
-        # Ads
-        st.subheader("📝 Ads")
-        st.write(generate_ai(f"Ad copies for {brand} in {industry}"))
+        # AI Ads
+        st.subheader("📝 AI Ad Copies")
+        st.write(generate_ai(f"Generate ad copies for {brand} in {industry}"))
 
         # Keywords
-        st.subheader("🔍 Keywords")
+        st.subheader("🔍 Keyword Strategy")
 
-        prompt = f"""
-        Generate Google Ads keywords CSV for {industry} in {country}
+        kw_prompt = f"""
+        Generate Google Ads keywords CSV with columns:
+        Keyword, Type, Match Type
+
+        For {industry} in {country}
         """
 
-        kw = generate_ai(prompt)
+        kw = generate_ai(kw_prompt)
         st.code(kw)
 
-        st.download_button("Download CSV", kw, "keywords.csv")
+        st.download_button("Download Keywords CSV", kw, "keywords.csv")
 
         # Budget Optimizer
-        st.subheader("🧠 Budget Optimization")
+        st.subheader("🧠 Budget Optimizer")
         st.write(generate_ai(f"Optimize budget for {industry} with {budget}"))
 
-        # Save
+        # Save plan
         if "plans" not in st.session_state:
             st.session_state.plans = []
 
@@ -148,52 +162,75 @@ with tab1:
             "results": results
         })
 
-        # PPT
+        # PPT Export
         if st.button("Download PPT"):
             create_ppt(brand, industry, results)
-            with open("plan.pptx", "rb") as f:
-                st.download_button("Download", f, "plan.pptx")
+            with open("media_plan.pptx", "rb") as f:
+                st.download_button("Download Media Plan", f, "media_plan.pptx")
 
 # =====================================================
-# TAB 2
+# TAB 2 — ANALYZER
 # =====================================================
 with tab2:
 
-    file = st.file_uploader("Upload CSV")
+    st.header("📈 Campaign Analyzer")
+
+    file = st.file_uploader("Upload CSV", type=["csv"])
 
     if file:
         df = pd.read_csv(file)
+
         st.dataframe(df.head())
 
         platform = detect_platform(df)
-        st.success(f"Detected: {platform}")
+        st.success(f"Detected Platform: {platform}")
 
+        st.subheader("📊 Charts")
         st.bar_chart(df.select_dtypes(include='number'))
 
-        st.subheader("💬 Custom AI")
+        # Creative Insights
+        st.subheader("🎨 Creative Insights")
 
-        prompt = st.text_area("Ask anything")
+        for col in df.columns:
+            if "ctr" in col.lower():
+                top = df.sort_values(col, ascending=False).head(5)
+                st.write("Top Performers")
+                st.dataframe(top)
 
-        if st.button("Run AI"):
+        # Custom AI Prompt
+        st.subheader("💬 Custom AI Analysis")
+
+        user_prompt = st.text_area("Ask anything about report")
+
+        if st.button("Run AI Analysis"):
             sample = df.head(20).to_string()
-            st.write(generate_ai(prompt + sample))
+            final_prompt = f"{user_prompt}\n\nData:\n{sample}"
+            st.write(generate_ai(final_prompt))
 
 # =====================================================
-# TAB 3
+# TAB 3 — AD PREVIEW
 # =====================================================
 with tab3:
 
-    code = st.text_area("Ad Tag")
+    st.header("🧾 Ad Tag Preview")
 
-    if st.button("Preview"):
+    code = st.text_area("Paste Ad Code")
+
+    if st.button("Preview Ad"):
         st.components.v1.html(code, height=400)
 
 # =====================================================
-# TAB 4
+# TAB 4 — SAVED
 # =====================================================
 with tab4:
 
-    if "plans" in st.session_state:
-        for p in st.session_state.plans:
-            st.write(p["brand"])
-            st.dataframe(pd.DataFrame(p["results"]))
+    st.header("💾 Saved Plans")
+
+    if "plans" in st.session_state and st.session_state.plans:
+
+        for plan in st.session_state.plans:
+            st.subheader(plan["brand"])
+            st.dataframe(pd.DataFrame(plan["results"]))
+
+    else:
+        st.info("No saved plans yet")
