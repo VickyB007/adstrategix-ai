@@ -31,14 +31,16 @@ api_key = st.sidebar.text_input("Gemini API Key", type="password")
 
 if api_key:
     genai.configure(api_key=api_key)
+    st.sidebar.success("✅ API Key Loaded")
 
-def generate_ai(prompt):
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        return response.text
-    except:
-        return "⚠️ Add valid Gemini API key"
+    # Test button
+    if st.sidebar.button("Test API"):
+        try:
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            res = model.generate_content("Say hello")
+            st.sidebar.success("✅ API Working")
+        except Exception as e:
+            st.sidebar.error(f"❌ Error: {str(e)}")
 
 # ================= FUNCTIONS =================
 
