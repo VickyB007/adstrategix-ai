@@ -34,7 +34,7 @@ def generate_ai(prompt):
         client = genai.Client(api_key=api_key)
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash-lite",
             contents=prompt
         )
 
@@ -95,9 +95,9 @@ with tab1:
     st.header("📊 Media Planner")
 
     brand = st.text_input("Brand Name")
-    industry = st.selectbox("Industry", ["Real Estate", "SaaS", "Ecommerce"])
+    industry = st.selectbox("Industry", ["Real Estate", "Banking & Finance", "Ecommerce/Retail", "Technology", "Education", "Entertainment", "Automobile", "Sports", "Travel & Leisure"])
     country = st.selectbox("Country", ["India", "USA", "UK"])
-    objective = st.selectbox("Objective", ["Leads", "Sales"])
+    objective = st.selectbox("Objective", ["Brand Awareness", "Leads", "Sales"])
     budget = st.number_input("Budget", min_value=1000)
 
     benchmarks = {
