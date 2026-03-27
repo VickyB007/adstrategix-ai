@@ -6,7 +6,7 @@ from io import StringIO
 
 st.set_page_config(page_title="AdStrategix AI", layout="wide")
 
-# ================= LOGIN FIXED =================
+# ================= LOGIN =================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -20,7 +20,7 @@ if not st.session_state.logged_in:
         if user == "admin" and pwd == "1234":
             st.session_state.logged_in = True
             st.success("Login successful")
-            st.rerun()  # FIX
+            st.rerun()
         else:
             st.error("Invalid credentials")
 
@@ -29,18 +29,26 @@ if not st.session_state.logged_in:
 # ================= GEMINI =================
 api_key = st.sidebar.text_input("Gemini API Key", type="password")
 
+def generate_ai(prompt):
+    try:
+        client = genai.Client(api_key=api_key)
+
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=prompt
+        )
+
+        return response.text
+
+    except Exception as e:
+        return f"❌ ERROR: {str(e)}"
+
+# API Status
 if api_key:
-    genai.configure(api_key=api_key)
     st.sidebar.success("✅ API Key Loaded")
 
-    # Test button
     if st.sidebar.button("Test API"):
-        try:
-            model = genai.GenerativeModel("gemini-pro")
-            res = model.generate_content("Say hello")
-            st.sidebar.success("✅ API Working")
-        except Exception as e:
-            st.sidebar.error(f"❌ Error: {str(e)}")
+        st.sidebar.write(generate_ai("Say hello"))
 
 # ================= FUNCTIONS =================
 
@@ -120,7 +128,7 @@ with tab1:
             conversions = clicks * (data["cvr"] / 100)
             cpa = sub_budget / conversions if conversions else 0
 
-            st.metric(p, f"{int(conversions)} conversions | CPA {round(cpa,2)}")
+            st.metric(p, f"{int(conversions)} conv | CPA {round(cpa,2)}")
 
             results.append({
                 "Platform": p,
@@ -142,7 +150,6 @@ with tab1:
         kw_prompt = f"""
         Generate Google Ads keywords CSV with columns:
         Keyword, Type, Match Type
-
         For {industry} in {country}
         """
 
@@ -153,7 +160,7 @@ with tab1:
 
         # Budget Optimizer
         st.subheader("🧠 Budget Optimizer")
-        st.write(generate_ai(f"Optimize budget for {industry} with {budget}"))
+        st.write(generate_ai(f"Optimize budget for {industry} with budget {budget}"))
 
         # Save plan
         if "plans" not in st.session_state:
@@ -190,16 +197,6 @@ with tab2:
         st.subheader("📊 Charts")
         st.bar_chart(df.select_dtypes(include='number'))
 
-        # Creative Insights
-        st.subheader("🎨 Creative Insights")
-
-        for col in df.columns:
-            if "ctr" in col.lower():
-                top = df.sort_values(col, ascending=False).head(5)
-                st.write("Top Performers")
-                st.dataframe(top)
-
-        # Custom AI Prompt
         st.subheader("💬 Custom AI Analysis")
 
         user_prompt = st.text_area("Ask anything about report")
